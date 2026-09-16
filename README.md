@@ -341,6 +341,27 @@ curl -X POST http://yyb-go:8000/wxapp/getCode \
   -d '{"ref":"1","app_id":"wx0000000000000000"}'
 ```
 
+### 接入 qq-farm-bot
+
+独立部署的 `qq-farm-bot` 应使用受保护的集成接口按需取码，不应读取或复制 YYB-Go 数据库中的
+`login_buffer`、refresh token。先在 YYB-Go 配置：
+
+```dotenv
+YYB_INTEGRATION_TOKEN=请生成一段高强度随机字符串
+```
+
+再在 `qq-farm-bot` 配置同一令牌：
+
+```dotenv
+YYB_GO_URL=http://host.docker.internal:8000
+YYB_GO_TOKEN=与YYB_INTEGRATION_TOKEN完全相同
+```
+
+农场服务通过 `GET /integration/accounts` 选择账号，通过
+`POST /integration/actions/get-code` 为 QQ 农场 AppID 实时生成一次性 code。YYB-Go 继续负责账号凭据续期；
+农场端只保存 YYB-Go 账号 ID，并在启动或重登时申请新 code。若两个容器已加入同一 Docker 网络，
+`YYB_GO_URL` 也可使用 `http://yyb-go:8000`。
+
 主动刷新单个账号状态：
 
 ```bash
