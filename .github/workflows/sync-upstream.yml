@@ -1,3 +1,4 @@
+```yaml
 name: Sync Upstream
 
 on:
@@ -20,43 +21,109 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ==========================================
+      # 1. 拉取完整仓库
+      # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # ==========================================
+      # 2. 配置 Git
+      # ==========================================
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      # ==========================================
+      # 3. 添加上游仓库
+      # ==========================================
       - name: Add upstream repository
         run: |
           git remote remove upstream 2>/dev/null || true
           git remote add upstream https://github.com/525815266/YYB-Go-Enhanced.git
 
-      - name: Sync upstream and preserve workflow
+      # ==========================================
+      # 4. 同步上游 main
+      # ==========================================
+      - name: Sync upstream main
         run: |
-          # 备份当前工作流文件
+          echo "========================================"
+          echo "同步 upstream/main → main"
+          echo "========================================"
+
+          # 备份自己的 workflow
           cp .github/workflows/sync-upstream.yml /tmp/sync-upstream.yml
 
-          # 拉取上游 main 分支
+          # 获取上游 main
           git fetch upstream main
 
-          # 切换到 main
+          # 切换到自己的 main
           git checkout main
 
-          # 重置为上游最新代码
+          # main 完全同步上游
           git reset --hard upstream/main
 
-          # 恢复自己的同步工作流
+          # 恢复自己的 workflow
           mkdir -p .github/workflows
           cp /tmp/sync-upstream.yml .github/workflows/sync-upstream.yml
 
-          # 提交工作流文件
+          # 提交 workflow
           git add .github/workflows/sync-upstream.yml
-          git commit -m "保留上游同步工作流" || echo "工作流文件无变化"
+          git commit -m "chore: preserve sync workflow" || echo "workflow 无变化"
 
-          # 推送到自己的仓库
+          # 推送 main
           git push origin main --force
+
+      # ==========================================
+      # 5. 将 main 合并到 QQ Farm Integration
+      # ==========================================
+      - name: Merge main into QQ Farm Integration
+        run: |
+          echo "========================================"
+          echo "同步 main → local/qq-farm-integration"
+          echo "========================================"
+
+          # 获取最新的两个分支
+          git fetch origin main
+          git fetch origin local/qq-farm-integration
+
+          # 基于远程整合分支创建本地分支
+          git checkout -B local/qq-farm-integration origin/local/qq-farm-integration
+
+          echo ""
+          echo "当前分支："
+          git branch --show-current
+
+          echo ""
+          echo "当前提交："
+          git log -1 --oneline
+
+          echo ""
+          echo "开始合并 main..."
+
+          # 关键：
+          # 把 main 合并进 QQ Farm Integration
+          # 不使用 reset --hard
+          git merge origin/main --no-edit
+
+          echo ""
+          echo "========================================"
+          echo "main 合并完成"
+          echo "========================================"
+
+          echo ""
+          echo "最近提交："
+          git log -5 --oneline
+
+          # 推送整合分支
+          git push origin local/qq-farm-integration
+
+          echo ""
+          echo "========================================"
+          echo "QQ Farm Integration 同步完成"
+          echo "========================================"
+```
